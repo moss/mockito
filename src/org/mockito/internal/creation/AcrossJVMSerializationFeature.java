@@ -51,11 +51,15 @@ import static org.mockito.internal.util.StringJoiner.join;
  * @since 1.9.6
  */
 @Incubating
-public class AcrossJVMSerializationFeature implements Serializable {
+public class AcrossJVMSerializationFeature implements Serializable, SpecialMethodBehavior {
     private static final long serialVersionUID = 7411152578314420778L;
     private static final String MOCKITO_PROXY_MARKER = "MockitoProxyMarker";
     private boolean instanceLocalCurrentlySerializingFlag = false;
     private Lock mutex = new ReentrantLock();
+
+    @Override public boolean appliesTo(Method method) {
+        return isWriteReplace(method);
+    }
 
     public boolean isWriteReplace(Method method) {
         return  method.getReturnType() == Object.class
@@ -63,6 +67,9 @@ public class AcrossJVMSerializationFeature implements Serializable {
                 && method.getName().equals("writeReplace");
     }
 
+    @Override public Object handleMethod(Object proxy, Method method, Object[] args) throws ObjectStreamException {
+        return writeReplace(proxy);
+    }
 
     /**
      * Custom implementation of the <code>writeReplace</code> method for serialization.
@@ -163,7 +170,6 @@ public class AcrossJVMSerializationFeature implements Serializable {
             settings.getExtraInterfaces().add(AcrossJVMMockitoMockSerializable.class);
         }
     }
-
 
     /**
      * This is the serialization proxy that will encapsulate the real mock data as a byte array.
